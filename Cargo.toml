@@ -1,0 +1,48 @@
+[package]
+name = "gpt-cli-howto"
+version = "0.1.0"
+edition = "2021"
+
+
+description = "Simple command line oracle that answers your questions using OpenAI GPT API"
+readme = "README.md"
+license = "MIT"
+
+[package.metadata.deb]
+
+maintainer = "Jarno Elonen <elonen@iki.fi>"
+copyright = "2023, Jarno Elonen <elonen@iki.fi>"
+section = "unknown"
+changelog = "debian/changelog"
+
+depends = "$auto"
+
+extended-description = """\
+Simple command line oracle that answers your questions using OpenAI GPT API.
+You need to get an API key from https://openai.com/ and set it in the
+configuration file.
+"""
+
+maintainer-scripts = "debian"
+assets = [
+    ["target/release/howto", "usr/bin/", "755"],
+    ["README.md", "usr/share/doc/gpt-cli-howto/README", "644"],
+]
+
+[[bin]]
+name = "howto"
+path = "src/main.rs"
+
+[dependencies]
+anyhow = "1.0.69"
+docopt = "1.1.1"
+log = "0.4.17"
+env_logger = "0.10.0"
+reqwest = { version = "0.11.14", features = ["multipart", "blocking", "json"] }
+rust-ini = "0.18.0"
+serde_json = "1.0.94"
+cargo-deb = "1.42.2"
+serde = "1.0.156"
+shellexpand = "3.0.0"
+termimad = "0.23.0"
+indicatif = "0.17.3"
