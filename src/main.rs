@@ -3,7 +3,7 @@ use docopt::Docopt;
 use indicatif::{ProgressStyle, ProgressBar};
 use query::ChatRole;
 use serde::Deserialize;
-use std::{path::PathBuf, sync::mpsc, time::Duration};
+use std::{path::PathBuf, sync::mpsc, time::Duration, fmt::Debug};
 use termimad;
 use crate::query::perform_streaming_request;
 
@@ -117,11 +117,13 @@ async fn main() -> anyhow::Result<()> {
             Ok((answer_md, tokens)) => {
                 history.push((ChatRole::Assistant, answer_md.clone()));
 
-                // Format md->ansi and indent
-                println!("\n{}", 
-                  termimad::term_text(&answer_md)
-                    .to_string().lines()
-                    .map(|l| format!("  {}", l)).collect::<Vec<_>>().join("\n"));
+                let skin = termimad::MadSkin::default();
+                let (tw, _) = termimad::terminal_size();
+                let tw = std::cmp::min(tw, 80)-2;
+                let fmt_txt = termimad::FmtText::from(&skin, &answer_md, Some(tw as usize));
+                let indented = fmt_txt.to_string().lines()
+                    .map(|l| format!("  {}", l)).collect::<Vec<_>>().join("\n");
+                println!("\n{}", &indented);
 
                 if let Some(tokens) = tokens {
                     if let Some(cost_per_token) = conf.cost_per_token {
@@ -186,7 +188,7 @@ fn prompt_for_continuation() -> anyhow::Result<Option<String>> {
     let mut input = String::new();
     std::io::stdin().read_line(&mut input)?;
     let input = input.trim();
-    if input.is_empty() {
+    if input.is_empty() || input == "q" || input == "quit" {
         Ok(None)
     } else {
         Ok(Some(input.to_string()))
