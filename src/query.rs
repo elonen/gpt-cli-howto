@@ -1,32 +1,43 @@
-use std::sync::mpsc;
 use futures_util::stream::StreamExt;
 use log::{debug, warn};
+use std::sync::mpsc;
+use tiktoken_rs::encoding_for_model;
 
 use crate::config::Config;
 
+#[derive(Debug, Clone, Copy)]
+pub enum ChatRole {
+    User,
+    Assistant,
+    System,
+}
+
 /// Initiate a streaming request to OpenAI, and return the answer.
-/// 
+///
 /// @param conf Configuration
 /// @param question The question to ask
 /// @param out_queue A channel to send the answer to, progressively token by token
 /// @return The complete answer, and the total number of tokens used
 pub async fn perform_streaming_request(
     conf: Config,
-    question: String,
-    out_queue: mpsc::Sender<String> )
-        -> anyhow::Result<(String, Option<u64>)>
-{
+    history: Vec<(ChatRole, String)>,
+    out_queue: mpsc::Sender<String>,
+) -> anyhow::Result<(String, Option<u64>)> {
     let url = "https://api.openai.com/v1/chat/completions";
     let authorization = format!("Bearer {}", conf.openai_token);
 
     let req_body_json = serde_json::json!({
-      "model": conf.model,
-      "stream": true,
-      "temperature": conf.temperature,
-      "messages": [
-        {"role": "system", "content": conf.priming_msg},
-        {"role": "user", "content": question},
-    ]});
+          "model": conf.model,
+          "stream": true,
+          "temperature": conf.temperature,
+          "messages": history.iter().map(|(role, content)| {
+              match role {
+                  ChatRole::User => serde_json::json!({"role": "user", "content": content}),
+                  ChatRole::Assistant => serde_json::json!({"role": "assistant", "content": content}),
+                  ChatRole::System => serde_json::json!({"role": "system", "content": content}),
+              }
+          }).collect::<Vec<_>>(),
+    });
 
     let mut stream = reqwest::Client::builder()
         .timeout(std::time::Duration::from_secs(120))
@@ -43,7 +54,6 @@ pub async fn perform_streaming_request(
         .error_for_status()?
         .bytes_stream();
 
-    let mut total_tokens = 0;
     let mut answer = String::new();
 
     while let Some(event) = stream.next().await {
@@ -92,11 +102,9 @@ pub async fn perform_streaming_request(
             for c in choices {
                 debug!("> CHOICE: {:?}", c);
                 if let Some(delta) = c["delta"].as_object() {
-                    if let Some(Some(next_bit)) = delta.get("content").map(|v| v.as_str())
-                    {
+                    if let Some(Some(next_bit)) = delta.get("content").map(|v| v.as_str()) {
                         out_queue.send(next_bit.to_string())?;
                         answer.push_str(next_bit);
-                        total_tokens += 1;
                     }
                     if delta.get("finish_reason").is_some() {
                         break;
@@ -105,5 +113,29 @@ pub async fn perform_streaming_request(
             }
         }
     }
-    Ok((answer, Some(total_tokens)))
+
+    let total_tokens = if let Some(tt) = encoding_for_model(&conf.model) {
+        let tt = match tt {
+            "cl100k_base" => tiktoken_rs::cl100k_base(),
+            "p50k_base" => tiktoken_rs::p50k_base(),
+            "p50k_edit" => tiktoken_rs::p50k_edit(),
+            "r50k_base" => tiktoken_rs::r50k_base(),
+            _ => {
+                warn!("Cannot find tokenizer for model: {}", conf.model);
+                return Ok((answer, None));
+            }
+        }?;
+        let history_combined = history.iter()
+            .map(|(_, content)| content.clone())
+            .collect::<Vec<_>>()
+            .join(" ")
+            + &answer;
+        let encoding = tt.encode_with_special_tokens(&history_combined);
+        Some(encoding.len() as u64)
+    } else {
+        None
+    };
+
+
+    Ok((answer, total_tokens))
 }
