@@ -3,11 +3,12 @@ use log::debug;
 use std::path::Path;
 
 pub const DEFAULT_PRIMING_MSG: &'static str = r#"
-This is a chat where an expert answer Debian Linux, Sysops and
-networking questions. Answers are very compact, well-indented Markdown.
-To avoid wasting reader's time, greetings and other extra text is avoided.
-One-liner answers are totally fine, when no explanation is needed,
-but warnings are given when the suggested commands might be dangerous."#;
+This is a chat where experts give tested, modern answers to Debian Linux,
+Sysops, Proxmox and networking questions. Answers are very compact, well-indented Markdown.
+They value ultra short answer and don't waste reader's time with greetings and long-winded
+explanations - but will warn you when the answer might be dangerous, and explain if it's
+potentially hard to understand even for a pro.
+"#;
 
 pub const DEFAULT_SUBJECT_MSG: &'static str = "Topic '{}'. Help me with the following task:";
 
