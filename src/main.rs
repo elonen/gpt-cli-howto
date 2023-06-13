@@ -3,8 +3,10 @@ use docopt::Docopt;
 use indicatif::{ProgressStyle, ProgressBar};
 use query::ChatRole;
 use serde::Deserialize;
-use std::{path::PathBuf, sync::mpsc, time::Duration, fmt::Debug};
+use std::{path::PathBuf, sync::mpsc, fmt::Debug};
 use termimad;
+use rustyline::error::ReadlineError;
+use rustyline::DefaultEditor;
 use crate::query::perform_streaming_request;
 
 mod config;
@@ -171,7 +173,6 @@ fn progress_bar_thread(recv: mpsc::Receiver<String>) -> anyhow::Result<()> {
     while let Ok(_msg) = recv.recv() {
         toks += 1;
         pb.set_message(format!("Working ({} tokens)...", toks));
-        std::thread::sleep(Duration::from_millis(100));
         pb.tick();
     }
 
@@ -179,18 +180,23 @@ fn progress_bar_thread(recv: mpsc::Receiver<String>) -> anyhow::Result<()> {
     Ok(())
 }
 
-// Using termimad to ask the user if they want to continue
+// Use termimad to ask the user if they want to continue
 fn prompt_for_continuation() -> anyhow::Result<Option<String>> {
     let mut md = termimad::MadSkin::default();
     md.set_fg(termimad::ansi(6));
     let q = "Type a continuation question, or press Enter to quit";
     md.print_text(q);
-    let mut input = String::new();
-    std::io::stdin().read_line(&mut input)?;
-    let input = input.trim();
-    if input.is_empty() || input == "q" || input == "quit" {
-        Ok(None)
-    } else {
-        Ok(Some(input.to_string()))
+
+    match DefaultEditor::new()?.readline("") {
+        Ok(input) => {
+            let input = input.trim();
+            if input.is_empty() || input == "q" || input == "quit" {
+                Ok(None)
+            } else {
+                Ok(Some(input.to_string()))
+            }
+        }
+        Err(ReadlineError::Interrupted) | Err(ReadlineError::Eof) => Ok(None),
+        Err(err) => Err(anyhow::anyhow!(format!("Error: {:?}", err))),
     }
 }

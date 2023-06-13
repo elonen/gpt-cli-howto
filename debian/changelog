@@ -1,3 +1,9 @@
+gpt-cli-howto (0.1.1) unstable; urgency=low
+
+  * Better line editing, faster output
+
+ -- Jarno Elonen <elonen@iki.fi>  Wed, Jun 14 01:05:43 AM EEST 2023
+
 gpt-cli-howto (0.1.0) unstable; urgency=low
 
   * First release
