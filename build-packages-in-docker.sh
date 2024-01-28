@@ -1,38 +1,36 @@
 #!/bin/bash
 set -e
-VERSION=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0] | [ .version ] | join("-")')
 
-IMG="gpt-cli-howto-build"
-
-if [[ ! " $@ " =~ " --skip-docker-build " ]]; then
-    echo "=========== Build docker image ==========="
-    docker build -t $IMG .
-fi
-
-#echo "=========== Make .exe ==========="
-#docker run --rm -iv${PWD}:/root/OUTPUT $IMG bash -xvs << EOF
-#    set -e
-#    cd /root
-#    PYO3_CROSS_PYTHON_VERSION=3.9 cargo build --target x86_64-pc-windows-gnu --release --verbose || exit 1
-#    chown -v $(id -u):$(id -g)  target/x86_64-pc-windows-gnu/release/*.exe
-#    cp -va target/x86_64-pc-windows-gnu/release/howto.exe OUTPUT/howto.exe
-#    echo "============ Done. Built for: ============="
-#    lsb_release -a
-#EOF
-
-echo "=========== Make .deb ==========="
-docker run --rm -iv${PWD}:/root/OUTPUT $IMG bash -xvs << EOF
-    set -e
-    cd /root
-    cargo deb --verbose || exit 1
-    chown -v $(id -u):$(id -g) target/debian/*.deb
-    cp -va target/debian/*.deb OUTPUT/
-    cp -va target/release/howto OUTPUT/
-    echo "============ Done. Built for: ============="
-    lsb_release -a
-    echo "\n...and x86_64-pc-windows-gnu"
+is_arch_supported() {
+    local arch=$1
+    local deb=$2
+    docker build --platform linux/$arch - <<EOF
+    FROM golang:1-$deb
+    RUN echo "Testing architecture $arch"
 EOF
+}
+
+for ARCH in amd64 arm64; do
+for DEBIAN_VER in bookworm bullseye; do
+if  is_arch_supported $ARCH $DEBIAN_VER; then
+    echo "=== Building for $DEBIAN_VER:$ARCH ==="
+    IMG="gpt-cli-howto-build-deb_${ARCH}:latest"
+    docker build --platform linux/${ARCH} --build-arg DEBIAN_VER=${DEBIAN_VER} -t ${IMG} .
+    docker run --platform linux/${ARCH} --rm -iv${PWD}:/root/OUTPUT ${IMG} bash -s << EOF
+        set -e
+        cd /root
+        debuild -us -uc -b
+        for x in ../*.deb; do
+            NEWFILE=\$(echo "\$x" | sed -E "s/(.*_)/\1${DEBIAN_VER}_/")
+            mv -v "\$x" "\$NEWFILE"
+        done
+        cp -va ../*.deb OUTPUT/
+EOF
+else
+    echo "=== Platform availability test (is_arch_supported) failed for $DEBIAN_VER:$ARCH. Skipping it..."
+fi
+done
+done
 
 echo "=============== $(pwd) ==============="
-#ls -l *.deb *.exe
 ls -l *.deb
