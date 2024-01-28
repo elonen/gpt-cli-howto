@@ -1,20 +1,19 @@
-FROM rust:1-bullseye
+ARG DEBIAN_VER=bookworm
+FROM golang:1-${DEBIAN_VER}
 
-RUN cargo install cargo-deb
-
-RUN apt-get -qy update
-RUN apt-get -qy install lsb-release
-
-RUN apt-get -qy install mingw-w64
-RUN rustup target add x86_64-pc-windows-gnu
-RUN apt-get -qy install python3.9-dev
+RUN apt-get update
+RUN apt-get -y install devscripts
 
 WORKDIR /root
 RUN mkdir /root/OUTPUT
 
-COPY Cargo.toml /root/
-COPY src src
-# RUN CARGO_UNSTABLE_SPARSE_REGISTRY=true cargo update
-RUN cargo fetch
+COPY go.mod .
+COPY go.sum .
+RUN go mod download
 
-COPY . .
+COPY cmd cmd
+COPY *.go ./
+RUN CGO_ENABLED=0 go build
+
+COPY LICENSE README.md ./
+COPY debian debian

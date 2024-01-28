@@ -1,0 +1,14 @@
+Source: gpt-cli-howto
+Section: utils
+Priority: optional
+Maintainer: Jarno Elonen <elonen@iki.fi>
+Build-Depends: debhelper (>= 11)
+Standards-Version: 4.5.0
+Homepage: https://github.com/elonen/gpt-cli-howto
+
+Package: gpt-cli-howto
+Architecture: any
+Depends: ${shlibs:Depends}, ${misc:Depends}
+Description: Simple command line oracle that answers your questions using OpenAI GPT API
+ You need to get an API key from https://openai.com/ and set it in the
+ configuration file.
