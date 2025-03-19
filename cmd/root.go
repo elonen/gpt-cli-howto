@@ -43,7 +43,12 @@ func RunCmd(cmd *cobra.Command, args []string) {
 		},
 	}
 
-	c := openai.NewClient(config.Default.OpenaiToken)
+	cconf := openai.DefaultConfig(config.Default.OpenaiToken)
+	if config.Default.BaseURL != "" {
+		cconf.BaseURL = config.Default.BaseURL
+	}
+
+	c := openai.NewClientWithConfig(cconf)
 	ctx := context.Background()
 
 	// Render the Markdown content with ANSI styling

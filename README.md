@@ -30,7 +30,8 @@ Examples:
     openai_token = sk-1234567890123456789012345678901234567890
     ; --- These are optional: ---
     chat = true                     ; If true, wait for a new question after each answer
-    model = "gpt-4-turbo-preview"
+    model = "gpt-4o"
+    base_url", https://api.openai.com/v1
     temperature = 0.1
     cost_per_token = 0.000025
     subject_msg = "Topic '{}'. Help me with the following task:"

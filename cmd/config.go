@@ -13,6 +13,7 @@ import (
 type Config struct {
 	Default struct {
 		OpenaiToken string  `mapstructure:"openai_token"`
+		BaseURL     string  `mapstructure:"base_url"`
 		Chat        bool    `mapstructure:"chat"`
 		Model       string  `mapstructure:"model"`
 		Temperature float32 `mapstructure:"temperature"`
@@ -35,6 +36,7 @@ func initConfig() {
 	viper.SetConfigType("ini")
 	viper.SetTypeByDefaultValue(true)
 	viper.SetDefault("default.openai_token", "")
+	viper.SetDefault("default.base_url", "https://api.openai.com/v1")
 	viper.SetDefault("default.chat", true)
 	viper.SetDefault("default.model", "gpt-4-turbo-preview")
 	viper.SetDefault("default.temperature", 0.1)
